@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>k-studio | Professional Cloud</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        :root { --rbx-green: #02b159; --rbx-blue: #00A2FF; --rbx-red: #FF2525; --bg: #F2F4F5; --border: #D5D5D5; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+
+        /* --- AUTH OVERLAY --- */
+        #auth-overlay { position: fixed; inset: 0; background: #FFF; z-index: 20000; display: flex; align-items: center; justify-content: center; }
+        .auth-card { width: 400px; padding: 40px; border: 1px solid #ddd; border-radius: 15px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+
+        /* --- NAV & CONTENT --- */
+        #nav-bar { width: 240px; height: 100%; background: #FFF; border-right: 1px solid var(--border); position: fixed; display: flex; flex-direction: column; z-index: 100; }
+        .logo { padding: 25px; font-weight: 900; font-size: 24px; color: #333; display: flex; align-items: center; gap: 10px; }
+        .logo-sq { width: 32px; height: 32px; background: var(--rbx-red); border-radius: 6px; }
+        .nav-btn { padding: 12px 25px; cursor: pointer; color: #666; font-weight: 500; }
+        .nav-btn.active { color: var(--rbx-green); border-left: 4px solid var(--rbx-green); background: #f0faf4; }
+
+        #content { margin-left: 240px; height: 100%; background: var(--bg); padding: 40px; box-sizing: border-box; overflow-y: auto; }
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* --- STUDIO --- */
+        #studio-ui { position: fixed; inset: 0; background: white; z-index: 5000; display: none; flex-direction: column; }
+        #ribbon { background: #F5F6F7; border-bottom: 1px solid #CCC; }
+        .ribbon-tabs { display: flex; background: #E0E0E0; height: 34px; }
+        .r-tab { padding: 0 20px; font-size: 11px; display: flex; align-items: center; cursor: pointer; border-right: 1px solid #ccc; font-weight: 600; }
+        .r-tab.active { background: #F5F6F7; }
+        .shelf { padding: 12px 20px; display: flex; gap: 12px; }
+        #viewport { flex: 1; background: #000; }
+
+        /* --- MODALS --- */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center; }
+        .modal-box { background: white; padding: 30px; border-radius: 12px; width: 400px; text-align: center; }
+        .btn-green { background: var(--rbx-green); color: white; padding: 12px; border: none; width: 100%; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-overlay">
+        <div class="auth-card">
+            <div class="logo" style="justify-content:center"><div class="logo-sq"></div> k-studio</div>
+            <h2>Sign In Required</h2>
+            <p style="color:#666; margin-bottom:25px;">To publish games and save your avatar, Google needs your permission to share your profile details.</p>
+            
+            <div id="g_id_onload"
+                 data-client_id="712854302422-v8n10vsc4j2v1p87oqc3j8p5a3o2p2p2.apps.googleusercontent.com"
+                 data-context="use"
+                 data-ux_mode="popup"
+                 data-callback="onGoogleAuth">
+            </div>
+            <div class="g_id_signin" data-type="standard"></div>
+
+            <div style="margin: 20px 0; color: #ddd;">────────</div>
+            <button onclick="guestMode()" style="width:100%; background:#f9f9f9; border:1px solid #ddd; padding:10px; cursor:pointer;">Continue as Guest (No Discovery)</button>
+        </div>
+    </div>
+
+    <div id="nav-bar">
+        <div class="logo"><div class="logo-sq"></div> k-studio</div>
+        <div class="nav-btn active" onclick="show('discovery')">Discovery</div>
+        <div class="nav-btn" onclick="show('mygames')">My Games</div>
+        <div class="nav-btn" onclick="show('player')">Avatar</div>
+        <button onclick="openSurvey()" style="margin-top:auto; background:var(--rbx-blue); color:white; border:none; padding:15px; font-weight:bold; cursor:pointer;">+ CREATE</button>
+    </div>
+
+    <div id="content">
+        <div id="view-discovery" class="view active"><h1>Discovery</h1><p>Public Games appear here for Verified users.</p></div>
+        <div id="view-mygames" class="view"><h1>My Games</h1><p>Your private projects.</p></div>
+        <div id="view-player" class="view">
+            <h1>Avatar Settings</h1>
+            <div style="background:white; padding:30px; border-radius:12px; display:flex; align-items:center; gap:20px;">
+                <img id="u-pfp" src="" style="width:80px; height:80px; border-radius:40px; background:#eee;">
+                <div>
+                    <h2 id="u-name">Guest</h2>
+                    <p id="u-status" style="color:var(--rbx-red);">Account Unverified</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="survey-modal" class="modal">
+        <div class="modal-box">
+            <h2>AI Safety Review</h2>
+            <input type="text" id="g-title" placeholder="Game Name" style="width:100%; padding:10px; margin-bottom:10px;">
+            <p>1. Combat/Fighting? <input type="checkbox" id="q-c"></p>
+            <p>2. Scary Content? <input type="checkbox" id="q-s"></p>
+            <button class="btn-green" style="background:var(--rbx-blue)" onclick="runAI()">Submit to AI</button>
+            <div id="ai-verdict" style="margin-top:15px; font-weight:bold;"></div>
+            <button id="open-studio" class="btn-green" style="display:none;" onclick="startStudio()">Launch Editor</button>
+        </div>
+    </div>
+
+    <div id="studio-ui">
+        <div id="ribbon">
+            <div class="ribbon-tabs">
+                <div class="r-tab active" onclick="setMode('translate')">HOME</div>
+                <div class="r-tab" onclick="setMode('scale')">MODEL</div>
+                <div class="r-tab" onclick="playTest()" style="color:var(--rbx-green)">▶ TEST</div>
+            </div>
+            <div class="shelf">
+                <button onclick="addPart()">Add Part</button>
+                <button onclick="exitStudio()" style="margin-left:auto; background:var(--rbx-red); color:white; border:none; padding:5px 15px;">EXIT</button>
+            </div>
+        </div>
+        <div id="viewport"></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+        import { TransformControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/TransformControls.js';
+
+        let scene, camera, renderer, gizmo, player;
+        let isVerified = false;
+
+        // --- AUTH ---
+        window.onGoogleAuth = (resp) => {
+            const user = JSON.parse(atob(resp.credential.split('.')[1]));
+            document.getElementById('u-name').innerText = user.name;
+            document.getElementById('u-pfp').src = user.picture;
+            document.getElementById('u-status').innerText = "Verified Creator";
+            document.getElementById('u-status').style.color = "var(--rbx-green)";
+            document.getElementById('auth-overlay').style.display = 'none';
+            isVerified = true;
+        };
+
+        window.guestMode = () => document.getElementById('auth-overlay').style.display = 'none';
+
+        // --- NAVIGATION ---
+        window.show = (id) => {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('view-'+id).classList.add('active');
+        };
+
+        window.openSurvey = () => document.getElementById('survey-modal').style.display = 'flex';
+
+        window.runAI = () => {
+            let rating = (document.getElementById('q-c').checked || document.getElementById('q-s').checked) ? "PG-13" : "G";
+            document.getElementById('ai-verdict').innerText = "AI Assigned Rating: " + rating;
+            document.getElementById('open-studio').style.display = 'block';
+        };
+
+        // --- 3D EDITOR ---
+        function init3D() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xAACCFF);
+            const vp = document.getElementById('viewport');
+            camera = new THREE.PerspectiveCamera(75, vp.clientWidth/vp.clientHeight, 0.1, 1000);
+            camera.position.set(20,20,20); camera.lookAt(0,0,0);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(vp.clientWidth, vp.clientHeight);
+            renderer.shadowMap.enabled = true;
+            vp.appendChild(renderer.domElement);
+            scene.add(new THREE.DirectionalLight(0xffffff, 1.5).position.set(10,50,10));
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(100,100), new THREE.MeshStandardMaterial({ color: 0x999999 }));
+            ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
+            scene.add(ground, new THREE.GridHelper(100,100));
+            gizmo = new TransformControls(camera, renderer.domElement);
+            gizmo.setTranslationSnap(1); gizmo.setScaleSnap(1);
+            gizmo.addEventListener('objectChange', () => {
+                gizmo.enabled = false;
+                setTimeout(() => gizmo.enabled = true, 500); // 0.5s lego delay
+            });
+            scene.add(gizmo);
+            function anim() { requestAnimationFrame(anim); renderer.render(scene, camera); }
+            anim();
+        }
+
+        window.addPart = () => {
+            const p = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), new THREE.MeshStandardMaterial({color: 0xcccccc}));
+            p.position.y = 1; p.castShadow = true;
+            scene.add(p); gizmo.attach(p);
+        };
+
+        window.playTest = () => {
+            player = new THREE.Mesh(new THREE.CapsuleGeometry(0.5,1.5), new THREE.MeshStandardMaterial({color: 0x00ff00}));
+            player.position.set(0,2,0); scene.add(player);
+            window.addEventListener('keydown', (e) => {
+                if(e.key === 'w') player.position.z -= 1;
+                if(e.key === 's') player.position.z += 1;
+                if(e.key === 'a') player.position.x -= 1;
+                if(e.key === 'd') player.position.x += 1;
+            });
+            alert("WASD Control Spawned!");
+        };
+
+        window.setMode = (m) => gizmo.setMode(m);
+        window.startStudio = () => {
+            document.getElementById('survey-modal').style.display = 'none';
+            document.getElementById('studio-ui').style.display = 'flex';
+            init3D();
+        };
+
+        window.exitStudio = () => {
+            if(!isVerified) alert("Guest Limitation: Your game is saved to your browser cache but cannot be published to Discovery without a Google Account.");
+            location.reload();
+        };
+    </script>
+</body>
+</html>
